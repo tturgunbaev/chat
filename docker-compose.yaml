@@ -1,0 +1,43 @@
+volumes:
+    langgraph-data:
+        driver: local
+services:
+    redis:
+        image: redis:latest
+        ports:
+            - "6379:6379"
+        healthcheck:
+            test: redis-cli ping
+            interval: 5s
+            timeout: 1s
+            retries: 5
+    postgres:
+        image: postgres:16
+        ports:
+            - "5433:5432"
+        environment:
+            POSTGRES_DB: postgres
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        volumes:
+            - langgraph-data:/var/lib/postgresql/data
+        healthcheck:
+            test: pg_isready -U postgres
+            start_period: 10s
+            timeout: 1s
+            retries: 5
+            interval: 5s
+    api:
+        image: ${IMAGE_NAME}
+        ports:
+            - "8123:8000"
+        depends_on:
+            redis:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        env_file:
+            - .env
+        environment:
+            REDIS_URI: redis://redis:6379
+            POSTGRES_URI: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
